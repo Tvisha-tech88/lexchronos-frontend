@@ -58,21 +58,19 @@
         allText += text + "\n";
       }
 
-      // Extract dates
-     const regex = /\b(
-\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4} |
-\d{4}[\/\-.]\d{2}[\/\-.]\d{2} |
-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\-]\d{1,2},?[\s\-]\d{4} |
-\d{1,2}[\s\-](?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\-]\d{4}
-)\b/gix;
+      console.log("EXTRACTED TEXT:", allText);
+
+      // ✅ Robust date regex
+      const regex = /\b(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}-\d{2}-\d{2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4})\b/g;
+
       const matches = allText.match(regex) || [];
 
       if (matches.length === 0) {
-        document.getElementById("output").innerText = "No dates found.";
+        document.getElementById("output").innerText =
+          "No dates found.\n\nSample text:\n" + allText.slice(0, 500);
         return;
       }
 
-      // Send to backend
       const res = await fetch(backendURL, {
         method: "POST",
         headers: {
