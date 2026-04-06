@@ -5,12 +5,16 @@
 </head>
 <body>
   <h1>LexChronos 📄</h1>
+
   <input type="file" id="pdfUpload" />
   <button onclick="processPDF()">Process</button>
 
   <pre id="output"></pre>
 
+  <!-- PDF.js -->
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist/build/pdf.min.js"></script>
+
+  <!-- Tesseract -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
   <script>
@@ -18,8 +22,13 @@
 
     async function processPDF() {
       const file = document.getElementById("pdfUpload").files[0];
-      const arrayBuffer = await file.arrayBuffer();
 
+      if (!file) {
+        alert("Please upload a PDF");
+        return;
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
       let allText = "";
@@ -30,6 +39,7 @@
         const textContent = await page.getTextContent();
         let text = textContent.items.map(item => item.str).join(" ");
 
+        // OCR fallback
         if (!text || text.length < 50) {
           const viewport = page.getViewport({ scale: 2 });
           const canvas = document.createElement("canvas");
@@ -47,15 +57,24 @@
         allText += text + "\n";
       }
 
-      const regex = /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g;
+      // Extract dates
+      const regex = /\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/g;
       const matches = allText.match(regex) || [];
 
-      const batch = matches.slice(0, 20);
+      if (matches.length === 0) {
+        document.getElementById("output").innerText = "No dates found.";
+        return;
+      }
 
+      // Send to backend
       const res = await fetch(backendURL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ textBatch: batch })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          textBatch: matches.slice(0, 20)
+        })
       });
 
       const data = await res.json();
