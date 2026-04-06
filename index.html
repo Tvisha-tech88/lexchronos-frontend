@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>LexChronos</title>
+</head>
+<body>
+  <h1>LexChronos 📄</h1>
+  <input type="file" id="pdfUpload" />
+  <button onclick="processPDF()">Process</button>
+
+  <pre id="output"></pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+  <script>
+    const backendURL = "https://lexchronos-backend.onrender.com/summarize";
+
+    async function processPDF() {
+      const file = document.getElementById("pdfUpload").files[0];
+      const arrayBuffer = await file.arrayBuffer();
+
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+      let allText = "";
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+
+        const textContent = await page.getTextContent();
+        let text = textContent.items.map(item => item.str).join(" ");
+
+        if (!text || text.length < 50) {
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          await page.render({ canvasContext: context, viewport }).promise;
+
+          const { data: { text: ocrText } } = await Tesseract.recognize(canvas, "eng");
+          text = ocrText;
+        }
+
+        allText += text + "\n";
+      }
+
+      const regex = /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g;
+      const matches = allText.match(regex) || [];
+
+      const batch = matches.slice(0, 20);
+
+      const res = await fetch(backendURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ textBatch: batch })
+      });
+
+      const data = await res.json();
+
+      document.getElementById("output").innerText = data.result;
+    }
+  </script>
+</body>
+</html>
